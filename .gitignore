@@ -1,0 +1,18 @@
+# data (downloaded from Kaggle by each team member, never committed)
+data/
+*.zip
+
+# local tracking artifacts
+mlruns/
+mlartifacts/
+mlflow.db
+wandb/
+
+# python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# environments
+.venv/
+venv/

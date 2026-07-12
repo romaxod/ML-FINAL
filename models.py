@@ -26,7 +26,7 @@ class NBeatsBlock(nn.Module):
             if basis == "trend":
                 tt = t / (L + H)
                 B = np.stack([tt ** i for i in range(degree + 1)])
-            else:  # seasonality - Fourier harmonics with a 52-week period
+            else:
                 B = np.concatenate(
                     [np.stack([np.cos(2 * np.pi * k * t / period),
                                np.sin(2 * np.pi * k * t / period)])
@@ -67,14 +67,13 @@ def build_nbeats_model(cfg, horizon):
 
 
 class MovingAvg(nn.Module):
-    """Moving average with edge padding - the trend part of the decomposition."""
 
     def __init__(self, kernel):
         super().__init__()
         self.kernel = kernel
         self.avg = nn.AvgPool1d(kernel_size=kernel, stride=1, padding=0)
 
-    def forward(self, x):                      # x: (B, L)
+    def forward(self, x):
         front = x[:, :1].repeat(1, (self.kernel - 1) // 2)
         back = x[:, -1:].repeat(1, self.kernel // 2)
         xx = torch.cat([front, x, back], dim=1).unsqueeze(1)
@@ -82,7 +81,6 @@ class MovingAvg(nn.Module):
 
 
 class DLinear(nn.Module):
-    """Decomposition + two linear layers (trend / seasonal)."""
 
     def __init__(self, L, H, kernel=25):
         super().__init__()
@@ -96,7 +94,6 @@ class DLinear(nn.Module):
 
 
 class NLinear(nn.Module):
-    """Last-value normalisation: x - x[-1] -> Linear -> + x[-1]."""
 
     def __init__(self, L, H):
         super().__init__()
@@ -141,12 +138,12 @@ class PatchTST(nn.Module):
         self.head = nn.Sequential(nn.Dropout(dropout),
                                   nn.Linear(n_patches * d_model, H))
 
-    def forward(self, x):                       # x: (B, L)
+    def forward(self, x):
         if self.revin:
             mu = x.mean(dim=1, keepdim=True)
             sd = x.std(dim=1, keepdim=True) + 1e-5
             x = (x - mu) / sd
-        patches = x.unfold(1, self.patch_len, self.stride)   # (B, n_patches, patch_len)
+        patches = x.unfold(1, self.patch_len, self.stride)
         z = self.proj(patches) + self.pos
         z = self.encoder(z)
         out = self.head(z.flatten(1))
@@ -164,10 +161,6 @@ def build_patchtst_model(cfg, horizon):
 
 
 class TorchForecastPipeline(mlflow.pyfunc.PythonModel):
-    """End-to-end pipeline: predict(raw test df [Store, Dept, Date, ...]) -> preds.
-    Stores the model + last L weeks of history + scales + fallback table.
-    Shared by every global-DL architecture (NBEATS, DLinear, PatchTST) - build_fn
-    tells it which model class to reconstruct."""
 
     def __init__(self, build_fn, cfg, state_dict, hist_tail, scale_vec,
                  series_index, train_end, horizon, fallback, global_mean):
